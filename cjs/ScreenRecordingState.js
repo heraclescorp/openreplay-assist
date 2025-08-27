@@ -1,0 +1,102 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RecordingState = void 0;
+const ConfirmWindow_js_1 = require("./ConfirmWindow/ConfirmWindow.js");
+const defaults_js_1 = require("./ConfirmWindow/defaults.js");
+var RecordingState;
+(function (RecordingState) {
+    RecordingState[RecordingState["Off"] = 0] = "Off";
+    RecordingState[RecordingState["Requested"] = 1] = "Requested";
+    RecordingState[RecordingState["Recording"] = 2] = "Recording";
+})(RecordingState || (exports.RecordingState = RecordingState = {}));
+const borderStyles = {
+    height: '100vh',
+    width: '100vw',
+    border: '2px dashed red',
+    left: 0,
+    top: 0,
+    position: 'fixed',
+    pointerEvents: 'none',
+};
+const buttonStyles = {
+    cursor: 'pointer',
+    color: 'white',
+    position: 'fixed',
+    bottom: '0',
+    left: 'calc(50vw - 60px)',
+    'font-weight': 500,
+    padding: '2px 4px',
+    background: '#394EFF',
+    'border-top-right-radius': '3px',
+    'border-top-left-radius': '3px',
+    'text-align': 'center',
+};
+class ScreenRecordingState {
+    constructor(confirmOptions) {
+        this.confirmOptions = confirmOptions;
+        this.status = RecordingState.Off;
+        this.overlayAdded = false;
+        this.confirm = null;
+        this.requestRecording = (id, onAccept, onDeny) => {
+            if (this.isActive)
+                return;
+            this.status = RecordingState.Requested;
+            this.confirm = new ConfirmWindow_js_1.default((0, defaults_js_1.recordRequestDefault)(this.confirmOptions));
+            this.confirm
+                .mount()
+                .then((allowed) => {
+                if (allowed) {
+                    this.acceptRecording();
+                    onAccept();
+                    this.recordingAgent = id;
+                }
+                else {
+                    this.rejectRecording();
+                    onDeny();
+                }
+            })
+                .then(() => {
+                var _a;
+                (_a = this.confirm) === null || _a === void 0 ? void 0 : _a.remove();
+            })
+                .catch((e) => {
+                var _a;
+                (_a = this.confirm) === null || _a === void 0 ? void 0 : _a.remove();
+                console.error(e);
+            });
+        };
+        this.acceptRecording = () => {
+            if (!this.overlayAdded) {
+                const borderWindow = window.document.createElement('div');
+                Object.assign(borderWindow.style, borderStyles);
+                borderWindow.className = 'or-recording-border';
+                borderWindow.setAttribute('data-openreplay-obscured', '');
+                borderWindow.setAttribute('data-openreplay-hidden', '');
+                borderWindow.setAttribute('data-openreplay-ignore', '');
+                window.document.body.appendChild(borderWindow);
+                this.overlayAdded = true;
+                this.uiComponents = [borderWindow,];
+            }
+            this.status = RecordingState.Recording;
+        };
+        this.stopAgentRecording = (id) => {
+            if (id === this.recordingAgent) {
+                this.rejectRecording();
+            }
+        };
+        this.stopRecording = () => {
+            this.rejectRecording();
+        };
+        this.rejectRecording = () => {
+            var _a, _b;
+            (_a = this.confirm) === null || _a === void 0 ? void 0 : _a.remove();
+            this.status = RecordingState.Off;
+            this.overlayAdded = false;
+            (_b = this.uiComponents) === null || _b === void 0 ? void 0 : _b.forEach((el) => { var _a; return (_a = el.parentElement) === null || _a === void 0 ? void 0 : _a.removeChild(el); });
+        };
+    }
+    get isActive() {
+        return this.status !== RecordingState.Off;
+    }
+}
+exports.default = ScreenRecordingState;
