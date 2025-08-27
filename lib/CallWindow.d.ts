@@ -1,0 +1,46 @@
+import type { LocalStream } from './LocalStream.js';
+export default class CallWindow {
+    private readonly logError;
+    private readonly callUITemplate?;
+    private remoteVideoId;
+    private readonly iframe;
+    private vRemote;
+    private vLocal;
+    private audioBtn;
+    private videoBtn;
+    private endCallBtn;
+    private agentNameElem;
+    private videoContainer;
+    private vPlaceholder;
+    private remoteControlContainer;
+    private remoteControlEndBtn;
+    private controlsContainer;
+    private onToggleVideo;
+    private tsInterval;
+    private remoteVideo;
+    private readonly load;
+    constructor(logError: (...args: any[]) => void, callUITemplate?: string | undefined);
+    private adjustIframeSize;
+    private checkRemoteVideoInterval;
+    private audioContainer;
+    addRemoteStream(rStream: MediaStream, peerId: string): void;
+    toggleRemoteVideoUI(enable: boolean): void;
+    private localStreams;
+    setLocalStreams(streams: LocalStream[]): void;
+    playRemote(): void;
+    setAssistentName(callingAgents: Map<string, string>): void;
+    private toggleAudioUI;
+    private toggleAudio;
+    private toggleVideoUI;
+    private toggleVideo;
+    showRemoteControl(endControl: () => void): void;
+    showControls(endCall: () => void): void;
+    hideControls(): void;
+    hideRemoteControl(): void;
+    setVideoToggleCallback(cb: any): void;
+    remove(): void;
+    toggleVideoStream({ streamId, enabled, }: {
+        streamId: string;
+        enabled: boolean;
+    }): void;
+}
