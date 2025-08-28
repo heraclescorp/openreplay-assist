@@ -5,10 +5,8 @@ type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void
 export interface Options {
     onAgentConnect: StartEndCallback;
     onCallStart: StartEndCallback;
-    onRemoteControlStart: StartEndCallback;
     onRecordingRequest?: (agentInfo: Record<string, any>) => any;
     onCallDeny?: () => any;
-    onRemoteControlDeny?: (agentInfo: Record<string, any>) => any;
     onRecordingDeny?: (agentInfo: Record<string, any>) => any;
     session_calling_peer_key: string;
     session_control_peer_key: string;
@@ -29,7 +27,6 @@ export default class Assist {
     private peer;
     private assistDemandedRestart;
     private callingState;
-    private remoteControl;
     private agents;
     private readonly options;
     constructor(app: App, options?: Partial<Options>, noSecureMode?: boolean);

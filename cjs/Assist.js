@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const socket_io_client_1 = require("socket.io-client");
 const peerjs_1 = require("peerjs");
 const LocalStream_js_1 = require("./LocalStream.js");
-const RemoteControl_js_1 = require("./RemoteControl.js");
 const CallWindow_js_1 = require("./CallWindow.js");
 const AnnotationCanvas_js_1 = require("./AnnotationCanvas.js");
 const ConfirmWindow_js_1 = require("./ConfirmWindow/ConfirmWindow.js");
@@ -27,7 +26,6 @@ class Assist {
         this.peer = null;
         this.assistDemandedRestart = false;
         this.callingState = CallingState.False;
-        this.remoteControl = null;
         this.agents = {};
         this.setCallingState = (newState) => {
             this.callingState = newState;
@@ -39,7 +37,6 @@ class Assist {
             serverURL: null,
             onCallStart: () => { },
             onAgentConnect: () => { },
-            onRemoteControlStart: () => { },
             callConfirm: {},
             controlConfirm: {}, // TODO: clear options passing/merging/overwriting
             recordingConfirm: {},
@@ -126,45 +123,6 @@ class Assist {
             }
             app.debug.log('Socket:', ...args);
         });
-        const onGrand = (id) => {
-            var _a;
-            if (!callUI) {
-                callUI = new CallWindow_js_1.default(app.debug.error, this.options.callUITemplate);
-            }
-            if (this.remoteControl) {
-                callUI === null || callUI === void 0 ? void 0 : callUI.showRemoteControl(this.remoteControl.releaseControl);
-            }
-            this.agents[id].onControlReleased = this.options.onRemoteControlStart((_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.agentInfo);
-            this.emit('control_granted', id);
-            annot = new AnnotationCanvas_js_1.default();
-            annot.mount();
-            return callingAgents.get(id);
-        };
-        const onRelease = (id, isDenied) => {
-            var _a, _b, _c;
-            {
-                if (id) {
-                    const cb = this.agents[id].onControlReleased;
-                    delete this.agents[id].onControlReleased;
-                    typeof cb === 'function' && cb();
-                    this.emit('control_rejected', id);
-                }
-                if (annot != null) {
-                    annot.remove();
-                    annot = null;
-                }
-                callUI === null || callUI === void 0 ? void 0 : callUI.hideRemoteControl();
-                if (this.callingState !== CallingState.True) {
-                    callUI === null || callUI === void 0 ? void 0 : callUI.remove();
-                    callUI = null;
-                }
-                if (isDenied) {
-                    const info = id ? (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.agentInfo : {};
-                    (_c = (_b = this.options).onRemoteControlDeny) === null || _c === void 0 ? void 0 : _c.call(_b, info || {});
-                }
-            }
-        };
-        this.remoteControl = new RemoteControl_js_1.default(this.options, onGrand, (id, isDenied) => onRelease(id, isDenied));
         const onAcceptRecording = () => {
             socket.emit('recording_accepted');
         };
@@ -179,26 +137,6 @@ class Assist {
                 return callback === null || callback === void 0 ? void 0 : callback(agentId, event.data);
             }
         }
-        // if (this.remoteControl !== null) {
-        //   socket.on('request_control', (agentId, dataObj) => {
-        //     processEvent(agentId, dataObj, this.remoteControl?.requestControl)
-        //   })
-        //   socket.on('release_control', (agentId, dataObj) => {
-        //     processEvent(agentId, dataObj, (_, data) =>
-        //       this.remoteControl?.releaseControl(data)
-        //     )
-        //   })
-        //   socket.on('scroll', (id, event) => processEvent(id, event, this.remoteControl?.scroll))
-        //   socket.on('click', (id, event) => processEvent(id, event, this.remoteControl?.click))
-        //   socket.on('move', (id, event) => processEvent(id, event, this.remoteControl?.move))
-        //   socket.on('focus', (id, event) => processEvent(id, event, (clientID, nodeID) => {
-        //     const el = app.nodes.getNode(nodeID)
-        //     if (el instanceof HTMLElement && this.remoteControl) {
-        //       this.remoteControl.focus(clientID, el)
-        //     }
-        //   }))
-        //   socket.on('input', (id, event) => processEvent(id, event, this.remoteControl?.input))
-        // }
         // TODO: restrict by id
         socket.on('moveAnnotation', (id, event) => processEvent(id, event, (_, d) => annot && annot.move(d)));
         socket.on('startAnnotation', (id, event) => processEvent(id, event, (_, d) => annot === null || annot === void 0 ? void 0 : annot.start(d)));
@@ -213,10 +151,6 @@ class Assist {
             this.app.stop();
             setTimeout(() => {
                 this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .then(() => {
-                    var _a;
-                    (_a = this.remoteControl) === null || _a === void 0 ? void 0 : _a.reconnect([id,]);
-                })
                     .catch(e => app.debug.error(e));
                 // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
             }, 500);
@@ -234,18 +168,13 @@ class Assist {
             this.app.stop();
             setTimeout(() => {
                 this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .then(() => {
-                    var _a;
-                    (_a = this.remoteControl) === null || _a === void 0 ? void 0 : _a.reconnect(ids);
-                })
                     .catch(e => app.debug.error(e));
                 // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
             }, 500);
         });
         socket.on('AGENT_DISCONNECTED', (id) => {
-            var _a, _b, _c;
-            (_a = this.remoteControl) === null || _a === void 0 ? void 0 : _a.releaseControl();
-            (_c = (_b = this.agents[id]) === null || _b === void 0 ? void 0 : _b.onDisconnect) === null || _c === void 0 ? void 0 : _c.call(_b);
+            var _a, _b;
+            (_b = (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.onDisconnect) === null || _b === void 0 ? void 0 : _b.call(_a);
             delete this.agents[id];
             recordingState.stopAgentRecording(id);
             endAgentCall(id);
@@ -350,7 +279,6 @@ class Assist {
             });
         };
         const handleCallEnd = () => {
-            var _a;
             // Streams
             Object.values(calls).forEach(call => call.close());
             Object.keys(calls).forEach(peerId => {
@@ -360,15 +288,7 @@ class Assist {
             Object.keys(lStreams).forEach((peerId) => { delete lStreams[peerId]; });
             // UI
             closeCallConfirmWindow();
-            if (((_a = this.remoteControl) === null || _a === void 0 ? void 0 : _a.status) === RemoteControl_js_1.RCStatus.Disabled) {
-                callUI === null || callUI === void 0 ? void 0 : callUI.remove();
-                annot === null || annot === void 0 ? void 0 : annot.remove();
-                callUI = null;
-                annot = null;
-            }
-            else {
-                callUI === null || callUI === void 0 ? void 0 : callUI.hideControls();
-            }
+            callUI === null || callUI === void 0 ? void 0 : callUI.hideControls();
             this.emit('UPDATE_SESSION', { agentIds: [], isCallActive: false, });
             this.setCallingState(CallingState.False);
             sessionStorage.removeItem(this.options.session_calling_peer_key);
@@ -479,9 +399,7 @@ class Assist {
         }
     }
     clean() {
-        var _a;
         // sometimes means new agent connected so we keep id for control
-        (_a = this.remoteControl) === null || _a === void 0 ? void 0 : _a.releaseControl(false, true);
         if (this.peer) {
             this.peer.destroy();
             this.app.debug.log('Peer destroyed');
