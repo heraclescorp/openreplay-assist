@@ -6,7 +6,6 @@ import type { Properties, } from 'csstype'
 import { App, } from '@openreplay/tracker'
 
 import RequestLocalStream, { LocalStream, } from './LocalStream.js'
-import RemoteControl, { RCStatus, } from './RemoteControl.js'
 import CallWindow from './CallWindow.js'
 import AnnotationCanvas from './AnnotationCanvas.js'
 import ConfirmWindow from './ConfirmWindow/ConfirmWindow.js'
@@ -23,10 +22,8 @@ type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void
 export interface Options {
   onAgentConnect: StartEndCallback;
   onCallStart: StartEndCallback;
-  onRemoteControlStart: StartEndCallback;
   onRecordingRequest?: (agentInfo: Record<string, any>) => any;
   onCallDeny?: () => any;
-  onRemoteControlDeny?: (agentInfo: Record<string, any>) => any;
   onRecordingDeny?: (agentInfo: Record<string, any>) => any;
   session_calling_peer_key: string;
   session_control_peer_key: string;
@@ -69,7 +66,6 @@ export default class Assist {
   private peer: Peer | null = null
   private assistDemandedRestart = false
   private callingState: CallingState = CallingState.False
-  private remoteControl: RemoteControl | null = null;
 
   private agents: Record<string, Agent> = {}
   private readonly options: Options
@@ -85,7 +81,6 @@ export default class Assist {
         serverURL: null,
         onCallStart: ()=>{},
         onAgentConnect: ()=>{},
-        onRemoteControlStart: ()=>{},
         callConfirm: {},
         controlConfirm: {}, // TODO: clear options passing/merging/overwriting
         recordingConfirm: {},
@@ -188,49 +183,6 @@ export default class Assist {
       app.debug.log('Socket:', ...args)
     })
 
-    const onGrand = (id) => {
-      if (!callUI) {
-        callUI = new CallWindow(app.debug.error, this.options.callUITemplate)
-      }
-      if (this.remoteControl){
-        callUI?.showRemoteControl(this.remoteControl.releaseControl)
-      }
-      this.agents[id].onControlReleased = this.options.onRemoteControlStart(this.agents[id]?.agentInfo)
-      this.emit('control_granted', id)
-      annot = new AnnotationCanvas()
-      annot.mount()
-      return callingAgents.get(id)
-    }
-    const onRelease = (id, isDenied) => {
-      {
-        if (id) {
-          const cb = this.agents[id].onControlReleased
-          delete this.agents[id].onControlReleased
-          typeof cb === 'function' && cb()
-          this.emit('control_rejected', id)
-        }
-        if (annot != null) {
-          annot.remove()
-          annot = null
-        }
-        callUI?.hideRemoteControl()
-        if (this.callingState !== CallingState.True) {
-          callUI?.remove()
-          callUI = null
-        }
-        if (isDenied) {
-          const info = id ? this.agents[id]?.agentInfo : {}
-          this.options.onRemoteControlDeny?.(info || {})
-        }
-      }
-    }
-
-    this.remoteControl = new RemoteControl(
-      this.options,
-      onGrand,
-      (id, isDenied) => onRelease(id, isDenied),
-    )
-
     const onAcceptRecording = () => {
       socket.emit('recording_accepted')
     }
@@ -246,27 +198,6 @@ export default class Assist {
         return callback?.(agentId, event.data)
       }
     }
-    // if (this.remoteControl !== null) {
-    //   socket.on('request_control', (agentId, dataObj) => {
-    //     processEvent(agentId, dataObj, this.remoteControl?.requestControl)
-    //   })
-    //   socket.on('release_control', (agentId, dataObj) => {
-    //     processEvent(agentId, dataObj, (_, data) =>
-    //       this.remoteControl?.releaseControl(data)
-    //     )
-    //   })
-    //   socket.on('scroll', (id, event) => processEvent(id, event, this.remoteControl?.scroll))
-    //   socket.on('click', (id, event) => processEvent(id, event, this.remoteControl?.click))
-    //   socket.on('move', (id, event) => processEvent(id, event, this.remoteControl?.move))
-    //   socket.on('focus', (id, event) => processEvent(id, event, (clientID, nodeID) => {
-    //     const el = app.nodes.getNode(nodeID)
-    //     if (el instanceof HTMLElement && this.remoteControl) {
-    //       this.remoteControl.focus(clientID, el)
-    //     }
-    //   }))
-    //   socket.on('input', (id, event) => processEvent(id, event, this.remoteControl?.input))
-    // }
-
 
     // TODO: restrict by id
     socket.on('moveAnnotation', (id, event) => processEvent(id, event, (_,  d) => annot && annot.move(d)))
@@ -282,9 +213,6 @@ export default class Assist {
       this.app.stop()
       setTimeout(() => {
         this.app.start().then(() => { this.assistDemandedRestart = false })
-          .then(() => {
-              this.remoteControl?.reconnect([id,])
-          })
           .catch(e => app.debug.error(e))
         // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
       }, 500)
@@ -301,9 +229,6 @@ export default class Assist {
       this.app.stop()
       setTimeout(() => {
         this.app.start().then(() => { this.assistDemandedRestart = false })
-          .then(() => {
-            this.remoteControl?.reconnect(ids)
-          })
           .catch(e => app.debug.error(e))
         // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
       }, 500)
@@ -311,8 +236,6 @@ export default class Assist {
     })
 
     socket.on('AGENT_DISCONNECTED', (id) => {
-      this.remoteControl?.releaseControl()
-
       this.agents[id]?.onDisconnect?.()
       delete this.agents[id]
 
@@ -428,14 +351,7 @@ export default class Assist {
       Object.keys(lStreams).forEach((peerId: string) => { delete lStreams[peerId] })
       // UI
       closeCallConfirmWindow()
-      if (this.remoteControl?.status === RCStatus.Disabled) {
-        callUI?.remove()
-        annot?.remove()
-        callUI = null
-        annot = null
-      } else {
-        callUI?.hideControls()
-      }
+      callUI?.hideControls()
 
       this.emit('UPDATE_SESSION', { agentIds: [], isCallActive: false, })
       this.setCallingState(CallingState.False)
@@ -555,7 +471,6 @@ export default class Assist {
 
   private clean() {
     // sometimes means new agent connected so we keep id for control
-    this.remoteControl?.releaseControl(false, true)
     if (this.peer) {
       this.peer.destroy()
       this.app.debug.log('Peer destroyed')
