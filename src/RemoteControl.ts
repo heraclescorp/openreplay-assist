@@ -28,107 +28,50 @@ export default class RemoteControl {
     private readonly onRelease: (id?: string | null, isDenied?: boolean) => void) {}
 
   reconnect(ids: string[]) {
-    const storedID = sessionStorage.getItem(this.options.session_control_peer_key)
-    if (storedID !== null &&  ids.indexOf(storedID) !== -1) {
-      this.grantControl(storedID)
-    } else {
-      sessionStorage.removeItem(this.options.session_control_peer_key)
-    }
+    console.log('Remote control is disabled.')
+    return
   }
 
   private confirm: ConfirmWindow | null = null
   requestControl = (id: string) => {
-    if (this.agentID !== null) {
-      this.releaseControl()
-      return
-    }
-    setTimeout(() =>{
-      if (this.status === RCStatus.Requesting) {
-        this.releaseControl()
-      }
-    }, 30000)
-    this.agentID = id
-    this.status = RCStatus.Requesting
-    this.confirm = new ConfirmWindow(controlConfirmDefault(this.options.controlConfirm))
-    this.confirm.mount().then(allowed => {
-      if (allowed) {
-        this.grantControl(id)
-      } else {
-        this.confirm?.remove()
-        this.releaseControl(true)
-      }
-    })
-    .then(() => {
-      this.confirm?.remove()
-    })
-    .catch(e => {
-        this.confirm?.remove()
-        console.error(e)
-      })
+    console.log('Remote control is disabled.')
+    return
   }
 
   releaseControl = (isDenied?: boolean, keepId?: boolean) => {
-    if (this.confirm) {
-      this.confirm.remove()
-      this.confirm = null
-    }
-    this.resetMouse()
-    this.status = RCStatus.Disabled
-    if (!keepId) {
-      sessionStorage.removeItem(this.options.session_control_peer_key)
-    }
-    this.onRelease(this.agentID, isDenied)
-    this.agentID = null
+    console.log('Remote control is disabled.')
+    return
   }
 
   grantControl = (id: string) => {
-    this.agentID = id
-    this.status = RCStatus.Enabled
-    sessionStorage.setItem(this.options.session_control_peer_key, id)
-    const agentName = this.onGrand(id)
-    if (this.mouse) {
-      this.resetMouse()
-    }
-    this.mouse = new Mouse(agentName)
-    this.mouse.mount()
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.releaseControl(false, true)
-      else {
-        if (this.status === RCStatus.Disabled) {
-          this.reconnect([id,])
-        }
-      }
-    })
+    console.log('Remote control is disabled.')
+    return
   }
 
   resetMouse = () => {
-    this.mouse?.remove()
-    this.mouse = null
+    console.log('Remote control is disabled.')
+    return
   }
 
-  scroll = (id, d) => { id === this.agentID && this.mouse?.scroll(d) }
+  scroll = (id, d) => { 
+    console.log('Remote control is disabled.')
+    return
+  }
   move = (id, xy) => {
-   return id === this.agentID && this.mouse?.move(xy)
+    console.log('Remote control is disabled.')
+    return
   }
   private focused: HTMLElement | null = null
   click = (id, xy) => {
-    if (id !== this.agentID || !this.mouse) { return }
-    this.focused = this.mouse.click(xy)
+    console.log('Remote control is disabled.')
+    return
   }
   focus = (id, el: HTMLElement) => {
-    this.focused = el
+    console.log('Remote control is disabled.')
+    return
   }
   input = (id, value: string) => {
-    if (id !== this.agentID || !this.mouse || !this.focused) { return }
-    if (this.focused instanceof HTMLTextAreaElement
-      || this.focused instanceof HTMLInputElement
-      || this.focused.tagName === 'INPUT'
-      || this.focused.tagName === 'TEXTAREA') {
-      setInputValue.call(this.focused, value)
-      const ev = new Event('input', { bubbles: true,})
-      this.focused.dispatchEvent(ev)
-    } else if (this.focused.isContentEditable) {
-      this.focused.innerText = value
-    }
+    console.log('Remote control is disabled.')
+    return
   }
 }

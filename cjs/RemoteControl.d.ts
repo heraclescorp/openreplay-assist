@@ -19,7 +19,7 @@ export default class RemoteControl {
     grantControl: (id: string) => void;
     resetMouse: () => void;
     scroll: (id: any, d: any) => void;
-    move: (id: any, xy: any) => false | void | undefined;
+    move: (id: any, xy: any) => void;
     private focused;
     click: (id: any, xy: any) => void;
     focus: (id: any, el: HTMLElement) => void;
