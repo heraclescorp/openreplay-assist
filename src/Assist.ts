@@ -246,26 +246,26 @@ export default class Assist {
         return callback?.(agentId, event.data)
       }
     }
-    if (this.remoteControl !== null) {
-      socket.on('request_control', (agentId, dataObj) => {
-        processEvent(agentId, dataObj, this.remoteControl?.requestControl)
-      })
-      socket.on('release_control', (agentId, dataObj) => {
-        processEvent(agentId, dataObj, (_, data) =>
-          this.remoteControl?.releaseControl(data)
-        )
-      })
-      socket.on('scroll', (id, event) => processEvent(id, event, this.remoteControl?.scroll))
-      socket.on('click', (id, event) => processEvent(id, event, this.remoteControl?.click))
-      socket.on('move', (id, event) => processEvent(id, event, this.remoteControl?.move))
-      socket.on('focus', (id, event) => processEvent(id, event, (clientID, nodeID) => {
-        const el = app.nodes.getNode(nodeID)
-        if (el instanceof HTMLElement && this.remoteControl) {
-          this.remoteControl.focus(clientID, el)
-        }
-      }))
-      socket.on('input', (id, event) => processEvent(id, event, this.remoteControl?.input))
-    }
+    // if (this.remoteControl !== null) {
+    //   socket.on('request_control', (agentId, dataObj) => {
+    //     processEvent(agentId, dataObj, this.remoteControl?.requestControl)
+    //   })
+    //   socket.on('release_control', (agentId, dataObj) => {
+    //     processEvent(agentId, dataObj, (_, data) =>
+    //       this.remoteControl?.releaseControl(data)
+    //     )
+    //   })
+    //   socket.on('scroll', (id, event) => processEvent(id, event, this.remoteControl?.scroll))
+    //   socket.on('click', (id, event) => processEvent(id, event, this.remoteControl?.click))
+    //   socket.on('move', (id, event) => processEvent(id, event, this.remoteControl?.move))
+    //   socket.on('focus', (id, event) => processEvent(id, event, (clientID, nodeID) => {
+    //     const el = app.nodes.getNode(nodeID)
+    //     if (el instanceof HTMLElement && this.remoteControl) {
+    //       this.remoteControl.focus(clientID, el)
+    //     }
+    //   }))
+    //   socket.on('input', (id, event) => processEvent(id, event, this.remoteControl?.input))
+    // }
 
 
     // TODO: restrict by id
