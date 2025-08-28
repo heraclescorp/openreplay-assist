@@ -3,3 +3,7 @@ npm-debug.log
 build
 .cache
 coverage
+.pnp.cjs
+.pnp.loader.mjs
+.yarn/
+yarn.lock
