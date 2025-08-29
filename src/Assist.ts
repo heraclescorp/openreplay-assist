@@ -1,16 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import type { Socket, } from 'socket.io-client'
 import { connect, } from 'socket.io-client'
-import Peer, { MediaConnection, } from 'peerjs'
-import type { Properties, } from 'csstype'
+import Peer from 'peerjs'
 import { App, } from '@openreplay/tracker'
 
-import RequestLocalStream, { LocalStream, } from './LocalStream.js'
-import CallWindow from './CallWindow.js'
-import AnnotationCanvas from './AnnotationCanvas.js'
-import ConfirmWindow from './ConfirmWindow/ConfirmWindow.js'
-import { callConfirmDefault, } from './ConfirmWindow/defaults.js'
-import type { Options as ConfirmOptions, } from './ConfirmWindow/defaults.js'
 import ScreenRecordingState from './ScreenRecordingState.js'
 
 // TODO: fully specified strict check with no-any (everywhere)
@@ -21,33 +14,11 @@ type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void
 
 export interface Options {
   onAgentConnect: StartEndCallback;
-  onCallStart: StartEndCallback;
   onRecordingRequest?: (agentInfo: Record<string, any>) => any;
-  onCallDeny?: () => any;
   onRecordingDeny?: (agentInfo: Record<string, any>) => any;
-  session_calling_peer_key: string;
-  session_control_peer_key: string;
-  callConfirm: ConfirmOptions;
-  controlConfirm: ConfirmOptions;
-  recordingConfirm: ConfirmOptions;
-
-  // @deprecated
-  confirmText?: string;
-  // @deprecated
-  confirmStyle?: Properties;
-
-  config: RTCConfiguration;
+  recordingConfirm: any;
   serverURL: string
-  callUITemplate?: string;
 }
-
-
-enum CallingState {
-  Requesting,
-  True,
-  False,
-}
-
 
 // TODO typing????
 type OptionalCallback = (()=>Record<string, unknown>) | void
@@ -58,14 +29,12 @@ type Agent = {
   //
 }
 
-
 export default class Assist {
   readonly version = 'PACKAGE_VERSION'
 
   private socket: Socket | null = null
   private peer: Peer | null = null
   private assistDemandedRestart = false
-  private callingState: CallingState = CallingState.False
 
   private agents: Record<string, Agent> = {}
   private readonly options: Options
@@ -75,14 +44,8 @@ export default class Assist {
     private readonly noSecureMode: boolean = false,
   ) {
     this.options = Object.assign({
-        session_calling_peer_key: '__openreplay_calling_peer',
-        session_control_peer_key: '__openreplay_control_peer',
-        config: null,
         serverURL: null,
-        onCallStart: ()=>{},
         onAgentConnect: ()=>{},
-        callConfirm: {},
-        controlConfirm: {}, // TODO: clear options passing/merging/overwriting
         recordingConfirm: {},
       },
       options,
@@ -130,9 +93,6 @@ export default class Assist {
     return Object.keys(this.agents).length > 0
   }
 
-  private readonly setCallingState = (newState: CallingState): void => {
-    this.callingState = newState
-  }
   private getHost():string{
     if (this.options.serverURL){
       return new URL(this.options.serverURL).host
@@ -148,13 +108,6 @@ export default class Assist {
   private onStart() {
     const app = this.app
     const sessionId = app.getSessionID()
-    // Common for all incoming call requests
-    let callUI: CallWindow | null = null
-    let annot: AnnotationCanvas | null = null
-    // TODO: incapsulate
-    let callConfirmWindow: ConfirmWindow | null = null
-    let callConfirmAnswer: Promise<boolean> | null = null
-    let callEndCallback: ReturnType<StartEndCallback> | null = null
 
     if (!sessionId) {
       return app.debug.error('No session ID')
@@ -193,17 +146,6 @@ export default class Assist {
     }
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
-    function processEvent(agentId: string, event: { meta: { tabId: string }, data?: any }, callback?: (id: string, data: any) => void) {
-      if (app.getTabId() === event.meta.tabId) {
-        return callback?.(agentId, event.data)
-      }
-    }
-
-    // TODO: restrict by id
-    socket.on('moveAnnotation', (id, event) => processEvent(id, event, (_,  d) => annot && annot.move(d)))
-    socket.on('startAnnotation', (id, event) => processEvent(id, event, (_,  d) => annot?.start(d)))
-    socket.on('stopAnnotation', (id, event) => processEvent(id, event, annot?.stop))
-
     socket.on('NEW_AGENT', (id: string, info) => {
       this.agents[id] = {
         onDisconnect: this.options.onAgentConnect?.(info),
@@ -240,32 +182,13 @@ export default class Assist {
       delete this.agents[id]
 
       recordingState.stopAgentRecording(id)
-      endAgentCall(id)
     })
     socket.on('NO_AGENT', () => {
       Object.values(this.agents).forEach(a => a.onDisconnect?.())
       this.agents = {}
       if (recordingState.isActive) recordingState.stopRecording()
     })
-    socket.on('call_end', (id) => {
-      if (!callingAgents.has(id)) {
-        app.debug.warn('Received call_end from unknown agent', id)
-        return
-      }
-      endAgentCall(id)
-    })
 
-    socket.on('_agent_name', (id, info) => {
-      if (app.getTabId() !== info.meta.tabId) return
-      const name = info.data
-      callingAgents.set(id, name)
-      updateCallerNames()
-    })
-    socket.on('videofeed', (_, info) => {
-      if (app.getTabId() !== info.meta.tabId) return
-      const feedState = info.data
-      callUI?.toggleVideoStream(feedState)
-    })
     socket.on('request_recording', (id, info) => {
       if (app.getTabId() !== info.meta.tabId) return
       const agentData = info.data
@@ -283,30 +206,12 @@ export default class Assist {
       }
     })
 
-    const callingAgents: Map<string, string> = new Map() // !! uses socket.io ID
-    // TODO: merge peerId & socket.io id  (simplest way - send peerId with the name)
-    const calls: Record<string, MediaConnection> = {} // !! uses peerJS ID
-    const lStreams: Record<string, LocalStream> = {}
-    // const callingPeers: Map<string, { call: MediaConnection, lStream: LocalStream }> = new Map() // Maybe
-    function endAgentCall(id: string) {
-      callingAgents.delete(id)
-      if (callingAgents.size === 0) {
-        handleCallEnd()
-      } else {
-        updateCallerNames()
-        //TODO: close() specific call and corresponding lStreams (after connecting peerId & socket.io id)
-      }
-    }
-
     // PeerJS call (todo: use native WebRTC)
     const peerOptions = {
       host: this.getHost(),
       path: this.getBasePrefixUrl()+'/assist',
       port: location.protocol === 'http:' && this.noSecureMode ? 80 : 443,
       //debug: appOptions.__debug_log ? 2 : 0, // 0 Print nothing //1 Prints only errors. / 2 Prints errors and warnings. / 3 Prints all logs.
-    }
-    if (this.options.config) {
-      peerOptions['config'] = this.options.config
     }
 
     const peer = new safeCastedPeer(peerID, peerOptions) as Peer
@@ -316,157 +221,9 @@ export default class Assist {
     peer.on('error', e => app.debug.warn('Peer error: ', e.type, e))
     peer.on('disconnected', () => peer.reconnect())
 
-    function updateCallerNames() {
-      callUI?.setAssistentName(callingAgents)
-    }
-
-    const closeCallConfirmWindow = () => {
-      if (callConfirmWindow) {
-        callConfirmWindow.remove()
-        callConfirmWindow = null
-        callConfirmAnswer = null
-      }
-    }
-    const requestCallConfirm = () => {
-      if (callConfirmAnswer) { // Already asking
-        return callConfirmAnswer
-      }
-      callConfirmWindow = new ConfirmWindow(callConfirmDefault(this.options.callConfirm || {
-        text: this.options.confirmText,
-        style: this.options.confirmStyle,
-      })) // TODO: reuse ?
-      return callConfirmAnswer = callConfirmWindow.mount().then(answer => {
-        closeCallConfirmWindow()
-        return answer
-      })
-    }
-
-    const handleCallEnd = () => { // Complete stop and clear all calls
-      // Streams
-      Object.values(calls).forEach(call => call.close())
-      Object.keys(calls).forEach(peerId => {
-        delete calls[peerId]
-      })
-      Object.values(lStreams).forEach((stream) => { stream.stop() })
-      Object.keys(lStreams).forEach((peerId: string) => { delete lStreams[peerId] })
-      // UI
-      closeCallConfirmWindow()
-      callUI?.hideControls()
-
-      this.emit('UPDATE_SESSION', { agentIds: [], isCallActive: false, })
-      this.setCallingState(CallingState.False)
-      sessionStorage.removeItem(this.options.session_calling_peer_key)
-
-      callEndCallback?.()
-    }
-    const initiateCallEnd = () => {
-      this.emit('call_end')
-      handleCallEnd()
-    }
-    const updateVideoFeed = ({ enabled, }) => this.emit('videofeed', { streamId: this.peer?.id, enabled, })
-
     peer.on('call', (call) => {
-      app.debug.log('Incoming call from', call.peer)
-      let confirmAnswer: Promise<boolean>
-      const callingPeerIds = JSON.parse(sessionStorage.getItem(this.options.session_calling_peer_key) || '[]')
-      if (callingPeerIds.includes(call.peer) || this.callingState === CallingState.True) {
-        confirmAnswer = Promise.resolve(true)
-      } else {
-        this.setCallingState(CallingState.Requesting)
-        confirmAnswer = requestCallConfirm()
-        this.playNotificationSound() // For every new agent during confirmation here
-
-        // TODO: only one (latest) timeout
-        setTimeout(() => {
-          if (this.callingState !== CallingState.Requesting) { return }
-          initiateCallEnd()
-        }, 30000)
-      }
-
-      confirmAnswer.then(async agreed => {
-        if (!agreed) {
-          initiateCallEnd()
-          this.options.onCallDeny?.()
-          return
-        }
-        // Request local stream for the new connection
-        try {
-          // lStreams are reusable so fare we don't delete them in the `endAgentCall`
-          if (!lStreams[call.peer]) {
-            app.debug.log('starting new stream for', call.peer)
-            lStreams[call.peer] = await RequestLocalStream()
-          }
-          calls[call.peer] = call
-        } catch (e) {
-          app.debug.error('Audio media device request error:', e)
-          initiateCallEnd()
-          return
-        }
-
-        // UI
-        if (!callUI) {
-          callUI = new CallWindow(app.debug.error, this.options.callUITemplate)
-          callUI.setVideoToggleCallback(updateVideoFeed)
-        }
-        callUI.showControls(initiateCallEnd)
-
-        if (!annot) {
-          annot = new AnnotationCanvas()
-          annot.mount()
-        }
-        // have to be updated
-        callUI.setLocalStreams(Object.values(lStreams))
-
-        call.on('error', e => {
-          app.debug.warn('Call error:', e)
-          initiateCallEnd()
-        })
-        call.on('stream', (rStream) => {
-          callUI?.addRemoteStream(rStream, call.peer)
-          const onInteraction = () => { // do only if document.hidden ?
-            callUI?.playRemote()
-            document.removeEventListener('click', onInteraction)
-          }
-          document.addEventListener('click', onInteraction)
-        })
-
-        // remote video on/off/camera change
-        lStreams[call.peer].onVideoTrack(vTrack => {
-          const sender = call.peerConnection.getSenders().find(s => s.track?.kind === 'video')
-          if (!sender) {
-            app.debug.warn('No video sender found')
-            return
-          }
-          app.debug.log('sender found:', sender)
-          void sender.replaceTrack(vTrack)
-        })
-
-        call.answer(lStreams[call.peer].stream)
-
-        document.addEventListener('visibilitychange', () => {
-          initiateCallEnd()
-        })
-
-        this.setCallingState(CallingState.True)
-        if (!callEndCallback) { callEndCallback = this.options.onCallStart?.() }
-
-        const callingPeerIds = Object.keys(calls)
-        sessionStorage.setItem(this.options.session_calling_peer_key, JSON.stringify(callingPeerIds))
-        this.emit('UPDATE_SESSION', { agentIds: callingPeerIds, isCallActive: true, })
-      }).catch(reason => { // in case of Confirm.remove() without user answer (not a error)
-        app.debug.log(reason)
-      })
+      app.debug.log('Calls are not supported')
     })
-  }
-
-  private playNotificationSound() {
-    if ('Audio' in window) {
-      new Audio('https://static.openreplay.com/tracker-assist/notification.mp3')
-      .play()
-      .catch(e => {
-        this.app.debug.warn(e)
-      })
-    }
   }
 
   private clean() {
