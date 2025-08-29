@@ -179,9 +179,6 @@ class Assist {
         // @ts-ignore (peerjs typing)
         peer.on('error', e => app.debug.warn('Peer error: ', e.type, e));
         peer.on('disconnected', () => peer.reconnect());
-        peer.on('call', (call) => {
-            app.debug.log('Calls are not supported');
-        });
     }
     clean() {
         // sometimes means new agent connected so we keep id for control
