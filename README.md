@@ -2,6 +2,14 @@
 
 OpenReplay Assist Plugin allows you to support your users by seeing their live screen and instantly hopping on call (WebRTC) with them without requiring any 3rd-party screen sharing software.
 
+## Local Testing
+To test OpenReplay Assist locally, follow these instructions:
+1. Sign up for a free ngrok account
+2. Boot up local testing stack (e.g., run `./runall.sh` in the monorepo)
+3. Run `ngrok http <port>` (e.g., `8083` for Aven My)
+   - If this errors out, run `pkill ngrok`
+4. You should now be able to see your session in `https://openreplay.aven.com/.../assist`
+
 ## Documentation
 
 For launch options and available public methods, [refer to the documentation](https://docs.openreplay.com/plugins/assist)
