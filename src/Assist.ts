@@ -142,49 +142,6 @@ export default class Assist {
     }
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
-    socket.on('NEW_AGENT', (id: string, info) => {
-      this.agents[id] = {
-        onDisconnect: this.options.onAgentConnect?.(info),
-        agentInfo: info, // TODO ?
-      }
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { this.assistDemandedRestart = false })
-          .catch(e => app.debug.error(e))
-        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-      }, 500)
-    })
-    socket.on('AGENTS_CONNECTED', (ids: string[]) => {
-      ids.forEach(id =>{
-        const agentInfo = this.agents[id]?.agentInfo
-        this.agents[id] = {
-          agentInfo,
-          onDisconnect: this.options.onAgentConnect?.(agentInfo),
-        }
-      })
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { this.assistDemandedRestart = false })
-          .catch(e => app.debug.error(e))
-        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-      }, 500)
-
-    })
-
-    socket.on('AGENT_DISCONNECTED', (id) => {
-      this.agents[id]?.onDisconnect?.()
-      delete this.agents[id]
-
-      recordingState.stopAgentRecording(id)
-    })
-    socket.on('NO_AGENT', () => {
-      Object.values(this.agents).forEach(a => a.onDisconnect?.())
-      this.agents = {}
-      if (recordingState.isActive) recordingState.stopRecording()
-    })
-
     socket.on('request_recording', (id, info) => {
       if (app.getTabId() !== info.meta.tabId) return
       const agentData = info.data

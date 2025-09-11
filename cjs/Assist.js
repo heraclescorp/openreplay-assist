@@ -99,49 +99,6 @@ class Assist {
             (_b = (_a = this.options).onRecordingDeny) === null || _b === void 0 ? void 0 : _b.call(_a, agentData || {});
         };
         const recordingState = new ScreenRecordingState_js_1.default(this.options.recordingConfirm);
-        socket.on('NEW_AGENT', (id, info) => {
-            var _a, _b;
-            this.agents[id] = {
-                onDisconnect: (_b = (_a = this.options).onAgentConnect) === null || _b === void 0 ? void 0 : _b.call(_a, info),
-                agentInfo: info, // TODO ?
-            };
-            this.assistDemandedRestart = true;
-            this.app.stop();
-            setTimeout(() => {
-                this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .catch(e => app.debug.error(e));
-                // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-            }, 500);
-        });
-        socket.on('AGENTS_CONNECTED', (ids) => {
-            ids.forEach(id => {
-                var _a, _b, _c;
-                const agentInfo = (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.agentInfo;
-                this.agents[id] = {
-                    agentInfo,
-                    onDisconnect: (_c = (_b = this.options).onAgentConnect) === null || _c === void 0 ? void 0 : _c.call(_b, agentInfo),
-                };
-            });
-            this.assistDemandedRestart = true;
-            this.app.stop();
-            setTimeout(() => {
-                this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .catch(e => app.debug.error(e));
-                // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-            }, 500);
-        });
-        socket.on('AGENT_DISCONNECTED', (id) => {
-            var _a, _b;
-            (_b = (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.onDisconnect) === null || _b === void 0 ? void 0 : _b.call(_a);
-            delete this.agents[id];
-            recordingState.stopAgentRecording(id);
-        });
-        socket.on('NO_AGENT', () => {
-            Object.values(this.agents).forEach(a => { var _a; return (_a = a.onDisconnect) === null || _a === void 0 ? void 0 : _a.call(a); });
-            this.agents = {};
-            if (recordingState.isActive)
-                recordingState.stopRecording();
-        });
         socket.on('request_recording', (id, info) => {
             var _a, _b;
             if (app.getTabId() !== info.meta.tabId)
