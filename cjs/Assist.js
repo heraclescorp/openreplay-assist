@@ -99,6 +99,12 @@ class Assist {
             (_b = (_a = this.options).onRecordingDeny) === null || _b === void 0 ? void 0 : _b.call(_a, agentData || {});
         };
         const recordingState = new ScreenRecordingState_js_1.default(this.options.recordingConfirm);
+        socket.on('NO_AGENT', () => {
+            Object.values(this.agents).forEach(a => { var _a; return (_a = a.onDisconnect) === null || _a === void 0 ? void 0 : _a.call(a); });
+            this.agents = {};
+            if (recordingState.isActive)
+                recordingState.stopRecording();
+        });
         socket.on('request_recording', (id, info) => {
             var _a, _b;
             if (app.getTabId() !== info.meta.tabId)

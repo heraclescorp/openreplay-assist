@@ -142,6 +142,12 @@ export default class Assist {
     }
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
+    socket.on('NO_AGENT', () => {
+      Object.values(this.agents).forEach(a => a.onDisconnect?.())
+      this.agents = {}
+      if (recordingState.isActive) recordingState.stopRecording()
+    })
+
     socket.on('request_recording', (id, info) => {
       if (app.getTabId() !== info.meta.tabId) return
       const agentData = info.data
