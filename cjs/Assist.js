@@ -37,13 +37,6 @@ class Assist {
             this.clean();
             observer && observer.disconnect();
         });
-        app.attachCommitCallback((messages) => {
-            // @ts-ignore No need in statistics messages. TODO proper filter
-            if (messages.length === 2 && messages[0]._id === 0 && messages[1]._id === 49) {
-                return;
-            }
-            this.emit('messages', messages);
-        });
         app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo));
     }
     emit(ev, args) {
