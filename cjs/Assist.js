@@ -116,7 +116,6 @@ class Assist {
         });
     }
     clean() {
-        // sometimes means new agent connected so we keep id for control
         if (this.socket) {
             this.socket.disconnect();
             this.app.debug.log('Socket disconnected');
