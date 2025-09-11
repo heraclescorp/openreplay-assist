@@ -12,7 +12,6 @@ export default class Assist {
     private readonly noSecureMode;
     readonly version = "6.0.0";
     private socket;
-    private peer;
     private assistDemandedRestart;
     private agents;
     private readonly options;
