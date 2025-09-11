@@ -195,13 +195,6 @@ export default class Assist {
         this.emit('recording_busy')
       }
     })
-    socket.on('stop_recording', (id, info) => {
-      if (app.getTabId() !== info.meta.tabId) return
-      if (recordingState.isActive) {
-        recordingState.stopAgentRecording(id)
-      }
-    })
-
   }
 
   private clean() {
