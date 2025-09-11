@@ -4,6 +4,7 @@ import { connect, } from 'socket.io-client'
 import Peer from 'peerjs'
 import { App, } from '@openreplay/tracker'
 
+// test comment
 import ScreenRecordingState from './ScreenRecordingState.js'
 
 // TODO: fully specified strict check with no-any (everywhere)
