@@ -45,17 +45,16 @@ class Assist {
             this.emit('messages', messages);
         });
         // Send initial page setup messages to ensure document is created (like viewport module does)
-        app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo));
-        // Send initial page setup messages to ensure document is created (like viewport module does)
         setTimeout(() => {
             const initMessages = [
                 [4, window.location.href, document.referrer, performance.now()], // SetPageLocation
                 [5, window.innerWidth, window.innerHeight], // SetViewportSize  
-                [6, document.hidden] // SetPageVisibility
+                [55, document.hidden] // SetPageVisibility
             ];
             console.log('Sending initialization messages:', initMessages);
             this.emit('messages', initMessages);
         }, 1000);
+        app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo));
     }
     emit(ev, args) {
         this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, });
