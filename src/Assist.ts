@@ -71,11 +71,22 @@ export default class Assist {
       this.clean()
       observer && observer.disconnect()
     })
+    app.attachCommitCallback((messages) => {
+      if (this.agentsConnected) {
+        // @ts-ignore No need in statistics messages. TODO proper filter
+        if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
+        this.emit('messages', messages)
+      }
+    })
     app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo))
   }
 
   private emit(ev: string, args?: any): void {
     this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, })
+  }
+
+  private get agentsConnected(): boolean {
+    return Object.keys(this.agents).length > 0
   }
 
   private getHost():string{

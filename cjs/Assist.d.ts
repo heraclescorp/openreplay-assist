@@ -17,6 +17,7 @@ export default class Assist {
     private readonly options;
     constructor(app: App, options?: Partial<Options>, noSecureMode?: boolean);
     private emit;
+    private get agentsConnected();
     private getHost;
     private getBasePrefixUrl;
     private onStart;
