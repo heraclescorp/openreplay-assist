@@ -17,12 +17,22 @@ export interface Options {
   serverURL: string
 }
 
+// TODO typing????
+type OptionalCallback = (()=>Record<string, unknown>) | void
+type Agent = {
+  onDisconnect?: OptionalCallback,
+  onControlReleased?: OptionalCallback,
+  agentInfo: Record<string, string> | undefined
+  //
+}
+
 export default class Assist {
   readonly version = 'PACKAGE_VERSION'
 
   private socket: Socket | null = null
   private assistDemandedRestart = false
 
+  private agents: Record<string, Agent> = {}
   private readonly options: Options
   constructor(
     private readonly app: App,
@@ -61,13 +71,19 @@ export default class Assist {
       this.clean()
       observer && observer.disconnect()
     })
+    app.attachCommitCallback((messages) => {
+      // if (this.agentsConnected) {
+        // @ts-ignore No need in statistics messages. TODO proper filter
+        if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
+        this.emit('messages', messages)
+      // }
+    })
     app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo))
   }
 
   private emit(ev: string, args?: any): void {
     this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, })
   }
-
 
   private getHost():string{
     if (this.options.serverURL){

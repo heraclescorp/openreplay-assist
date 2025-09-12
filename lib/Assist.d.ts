@@ -13,6 +13,7 @@ export default class Assist {
     readonly version = "6.0.0";
     private socket;
     private assistDemandedRestart;
+    private agents;
     private readonly options;
     constructor(app: App, options?: Partial<Options>, noSecureMode?: boolean);
     private emit;
