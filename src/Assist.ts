@@ -162,18 +162,6 @@ export default class Assist {
       }, 500)
 
     })
-
-    socket.on('AGENT_DISCONNECTED', (id) => {
-      this.agents[id]?.onDisconnect?.()
-      delete this.agents[id]
-
-      recordingState.stopAgentRecording(id)
-    })
-    socket.on('NO_AGENT', () => {
-      Object.values(this.agents).forEach(a => a.onDisconnect?.())
-      this.agents = {}
-      if (recordingState.isActive) recordingState.stopRecording()
-    })
   }
 
   private clean() {

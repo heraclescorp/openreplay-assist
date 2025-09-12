@@ -122,18 +122,6 @@ class Assist {
                 // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
             }, 500);
         });
-        socket.on('AGENT_DISCONNECTED', (id) => {
-            var _a, _b;
-            (_b = (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.onDisconnect) === null || _b === void 0 ? void 0 : _b.call(_a);
-            delete this.agents[id];
-            recordingState.stopAgentRecording(id);
-        });
-        socket.on('NO_AGENT', () => {
-            Object.values(this.agents).forEach(a => { var _a; return (_a = a.onDisconnect) === null || _a === void 0 ? void 0 : _a.call(a); });
-            this.agents = {};
-            if (recordingState.isActive)
-                recordingState.stopRecording();
-        });
     }
     clean() {
         if (this.socket) {
