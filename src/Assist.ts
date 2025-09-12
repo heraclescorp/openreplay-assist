@@ -173,12 +173,6 @@ export default class Assist {
 
     })
 
-    socket.on('AGENT_DISCONNECTED', (id) => {
-      this.agents[id]?.onDisconnect?.()
-      delete this.agents[id]
-
-      recordingState.stopAgentRecording(id)
-    })
     socket.on('NO_AGENT', () => {
       Object.values(this.agents).forEach(a => a.onDisconnect?.())
       this.agents = {}
@@ -193,6 +187,13 @@ export default class Assist {
         recordingState.requestRecording(id, onAcceptRecording, () => onRejectRecording(agentData))
       } else {
         this.emit('recording_busy')
+      }
+    })
+
+    socket.on('stop_recording', (id, info) => {
+      if (app.getTabId() !== info.meta.tabId) return
+      if (recordingState.isActive) {
+        recordingState.stopAgentRecording(id)
       }
     })
   }
