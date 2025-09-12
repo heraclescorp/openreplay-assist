@@ -1,22 +1,20 @@
 import { App } from '@openreplay/tracker';
-type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void);
+type StartEndCallback = () => ((() => any) | void);
 export interface Options {
     onAgentConnect: StartEndCallback;
-    onRecordingRequest?: (agentInfo: Record<string, any>) => any;
-    onRecordingDeny?: (agentInfo: Record<string, any>) => any;
+    onRecordingRequest?: () => any;
+    onRecordingDeny?: () => any;
     recordingConfirm: any;
     serverURL: string;
 }
 export default class Assist {
     private readonly app;
-    private readonly noSecureMode;
     readonly version = "6.0.0";
     private socket;
-    private peer;
     private assistDemandedRestart;
     private agents;
     private readonly options;
-    constructor(app: App, options?: Partial<Options>, noSecureMode?: boolean);
+    constructor(app: App, options?: Partial<Options>);
     private emit;
     private get agentsConnected();
     private getHost;

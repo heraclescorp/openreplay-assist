@@ -1,21 +1,14 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import type { Socket, } from 'socket.io-client'
 import { connect, } from 'socket.io-client'
-import Peer from 'peerjs'
 import { App, } from '@openreplay/tracker'
 
-import ScreenRecordingState from './ScreenRecordingState.js'
-
-// TODO: fully specified strict check with no-any (everywhere)
-// @ts-ignore
-const safeCastedPeer = Peer.default || Peer
-
-type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void)
+type StartEndCallback = () => ((() => any) | void)
 
 export interface Options {
   onAgentConnect: StartEndCallback;
-  onRecordingRequest?: (agentInfo: Record<string, any>) => any;
-  onRecordingDeny?: (agentInfo: Record<string, any>) => any;
+  onRecordingRequest?: () => any;
+  onRecordingDeny?: () => any;
   recordingConfirm: any;
   serverURL: string
 }
@@ -25,7 +18,6 @@ type OptionalCallback = (()=>Record<string, unknown>) | void
 type Agent = {
   onDisconnect?: OptionalCallback,
   onControlReleased?: OptionalCallback,
-  agentInfo: Record<string, string> | undefined
   //
 }
 
@@ -33,7 +25,6 @@ export default class Assist {
   readonly version = 'PACKAGE_VERSION'
 
   private socket: Socket | null = null
-  private peer: Peer | null = null
   private assistDemandedRestart = false
 
   private agents: Record<string, Agent> = {}
@@ -41,7 +32,6 @@ export default class Assist {
   constructor(
     private readonly app: App,
     options?: Partial<Options>,
-    private readonly noSecureMode: boolean = false,
   ) {
     this.options = Object.assign({
         serverURL: null,
@@ -136,20 +126,9 @@ export default class Assist {
       app.debug.log('Socket:', ...args)
     })
 
-    const onAcceptRecording = () => {
-      socket.emit('recording_accepted')
-    }
-    const onRejectRecording = (agentData) => {
-      socket.emit('recording_rejected')
-
-      this.options.onRecordingDeny?.(agentData || {})
-    }
-    const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
-
-    socket.on('NEW_AGENT', (id: string, info) => {
+    socket.on('NEW_AGENT', (id: string) => {
       this.agents[id] = {
-        onDisconnect: this.options.onAgentConnect?.(info),
-        agentInfo: info, // TODO ?
+        onDisconnect: this.options.onAgentConnect?.(),
       }
       this.assistDemandedRestart = true
       this.app.stop()
@@ -159,75 +138,9 @@ export default class Assist {
         // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
       }, 500)
     })
-    socket.on('AGENTS_CONNECTED', (ids: string[]) => {
-      ids.forEach(id =>{
-        const agentInfo = this.agents[id]?.agentInfo
-        this.agents[id] = {
-          agentInfo,
-          onDisconnect: this.options.onAgentConnect?.(agentInfo),
-        }
-      })
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { this.assistDemandedRestart = false })
-          .catch(e => app.debug.error(e))
-        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-      }, 500)
-
-    })
-
-    socket.on('AGENT_DISCONNECTED', (id) => {
-      this.agents[id]?.onDisconnect?.()
-      delete this.agents[id]
-
-      recordingState.stopAgentRecording(id)
-    })
-    socket.on('NO_AGENT', () => {
-      Object.values(this.agents).forEach(a => a.onDisconnect?.())
-      this.agents = {}
-      if (recordingState.isActive) recordingState.stopRecording()
-    })
-
-    socket.on('request_recording', (id, info) => {
-      if (app.getTabId() !== info.meta.tabId) return
-      const agentData = info.data
-      if (!recordingState.isActive) {
-        this.options.onRecordingRequest?.(JSON.parse(agentData))
-        recordingState.requestRecording(id, onAcceptRecording, () => onRejectRecording(agentData))
-      } else {
-        this.emit('recording_busy')
-      }
-    })
-    socket.on('stop_recording', (id, info) => {
-      if (app.getTabId() !== info.meta.tabId) return
-      if (recordingState.isActive) {
-        recordingState.stopAgentRecording(id)
-      }
-    })
-
-    // PeerJS call (todo: use native WebRTC)
-    const peerOptions = {
-      host: this.getHost(),
-      path: this.getBasePrefixUrl()+'/assist',
-      port: location.protocol === 'http:' && this.noSecureMode ? 80 : 443,
-      //debug: appOptions.__debug_log ? 2 : 0, // 0 Print nothing //1 Prints only errors. / 2 Prints errors and warnings. / 3 Prints all logs.
-    }
-
-    const peer = new safeCastedPeer(peerID, peerOptions) as Peer
-    this.peer = peer
-
-    // @ts-ignore (peerjs typing)
-    peer.on('error', e => app.debug.warn('Peer error: ', e.type, e))
-    peer.on('disconnected', () => peer.reconnect())
   }
 
   private clean() {
-    // sometimes means new agent connected so we keep id for control
-    if (this.peer) {
-      this.peer.destroy()
-      this.app.debug.log('Peer destroyed')
-    }
     if (this.socket) {
       this.socket.disconnect()
       this.app.debug.log('Socket disconnected')
