@@ -31,6 +31,7 @@ export default class Assist {
 
   private socket: Socket | null = null
   private assistDemandedRestart = false
+  private initializationInterval: NodeJS.Timeout | null = null
 
   private agents: Record<string, Agent> = {}
   private readonly options: Options
@@ -77,28 +78,53 @@ export default class Assist {
       this.emit('messages', messages)
     })
     
-    // Restart app every 5 seconds to send initial messages like the original code did
-    const restartApp = () => {
-      console.log('Triggering app restart to send initial messages...')
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { 
-          this.assistDemandedRestart = false
-          console.log('App restart completed')
-        }).catch(e => this.app.debug.error(e))
-      }, 500)
-    }
+    // Send essential initialization messages directly
+    setTimeout(() => {
+      this.sendInitializationMessages()
+    }, 1000)
     
-    // Restart immediately and then every 5 seconds
-    setTimeout(restartApp, 1000)
-    setInterval(restartApp, 5000)
+    // Start periodic initialization message sending every 5 seconds
+    this.startPeriodicInitialization()
     
     app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo))
   }
 
   private emit(ev: string, args?: any): void {
     this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, })
+  }
+
+  private sendInitializationMessages(): void {
+    if (!this.socket) return
+    
+    console.log('Sending essential initialization messages...')
+    // Send the messages that create document context
+    const messages = [
+      [4, window.location.href, document.referrer, performance.now()], // SetPageLocation
+      [5, window.innerWidth, window.innerHeight], // SetViewportSize  
+      [55, document.hidden] // SetPageVisibility
+    ]
+    messages.forEach(msg => {
+      this.emit('messages', [msg])
+    })
+  }
+
+  private startPeriodicInitialization(): void {
+    // Clear any existing interval
+    if (this.initializationInterval) {
+      clearInterval(this.initializationInterval)
+    }
+    
+    // Send initialization messages every 5 seconds
+    this.initializationInterval = setInterval(() => {
+      this.sendInitializationMessages()
+    }, 5000)
+  }
+
+  private stopPeriodicInitialization(): void {
+    if (this.initializationInterval) {
+      clearInterval(this.initializationInterval)
+      this.initializationInterval = null
+    }
   }
 
   private getHost():string{
@@ -171,9 +197,15 @@ export default class Assist {
         recordingState.stopAgentRecording(id)
       }
     })
+
+    // Restart periodic initialization when socket connects
+    this.startPeriodicInitialization()
   }
 
   private clean() {
+    // Stop periodic initialization
+    this.stopPeriodicInitialization()
+    
     // sometimes means new agent connected so we keep id for control
     if (this.socket) {
       this.socket.disconnect()
