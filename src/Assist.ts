@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import type { Socket, } from 'socket.io-client'
 import { connect, } from 'socket.io-client'
+import Peer from 'peerjs'
 import { App, } from '@openreplay/tracker'
 
 import ScreenRecordingState from './ScreenRecordingState.js'
-
-// TODO: fully specified strict check with no-any (everywhere)
 
 type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void)
 
@@ -31,7 +30,6 @@ export default class Assist {
 
   private socket: Socket | null = null
   private assistDemandedRestart = false
-  private initializationInterval: NodeJS.Timeout | null = null
 
   private agents: Record<string, Agent> = {}
   private readonly options: Options
@@ -73,19 +71,12 @@ export default class Assist {
       observer && observer.disconnect()
     })
     app.attachCommitCallback((messages) => {
-      // @ts-ignore No need in statistics messages. TODO proper filter
-      if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
-      this.emit('messages', messages)
+      if (this.agentsConnected) {
+        // @ts-ignore No need in statistics messages. TODO proper filter
+        if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
+        this.emit('messages', messages)
+      }
     })
-    
-    // Send essential initialization messages directly
-    setTimeout(() => {
-      this.sendInitializationMessages()
-    }, 1000)
-    
-    // Start periodic initialization message sending every 5 seconds
-    this.startPeriodicInitialization()
-    
     app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo))
   }
 
@@ -93,38 +84,8 @@ export default class Assist {
     this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, })
   }
 
-  private sendInitializationMessages(): void {
-    if (!this.socket) return
-    
-    console.log('Sending essential initialization messages...')
-    // Send the messages that create document context
-    const messages = [
-      [4, window.location.href, document.referrer, performance.now()], // SetPageLocation
-      [5, window.innerWidth, window.innerHeight], // SetViewportSize  
-      [55, document.hidden] // SetPageVisibility
-    ]
-    messages.forEach(msg => {
-      this.emit('messages', [msg])
-    })
-  }
-
-  private startPeriodicInitialization(): void {
-    // Clear any existing interval
-    if (this.initializationInterval) {
-      clearInterval(this.initializationInterval)
-    }
-    
-    // Send initialization messages every 5 seconds
-    this.initializationInterval = setInterval(() => {
-      this.sendInitializationMessages()
-    }, 5000)
-  }
-
-  private stopPeriodicInitialization(): void {
-    if (this.initializationInterval) {
-      clearInterval(this.initializationInterval)
-      this.initializationInterval = null
-    }
+  private get agentsConnected(): boolean {
+    return Object.keys(this.agents).length > 0
   }
 
   private getHost():string{
@@ -180,6 +141,49 @@ export default class Assist {
     }
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
+    socket.on('NEW_AGENT', (id: string, info) => {
+      this.agents[id] = {
+        onDisconnect: this.options.onAgentConnect?.(info),
+        agentInfo: info, // TODO ?
+      }
+      this.assistDemandedRestart = true
+      this.app.stop()
+      setTimeout(() => {
+        this.app.start().then(() => { this.assistDemandedRestart = false })
+          .catch(e => app.debug.error(e))
+        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+      }, 500)
+    })
+    socket.on('AGENTS_CONNECTED', (ids: string[]) => {
+      ids.forEach(id =>{
+        const agentInfo = this.agents[id]?.agentInfo
+        this.agents[id] = {
+          agentInfo,
+          onDisconnect: this.options.onAgentConnect?.(agentInfo),
+        }
+      })
+      this.assistDemandedRestart = true
+      this.app.stop()
+      setTimeout(() => {
+        this.app.start().then(() => { this.assistDemandedRestart = false })
+          .catch(e => app.debug.error(e))
+        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+      }, 500)
+
+    })
+
+    socket.on('AGENT_DISCONNECTED', (id) => {
+      this.agents[id]?.onDisconnect?.()
+      delete this.agents[id]
+
+      recordingState.stopAgentRecording(id)
+    })
+    socket.on('NO_AGENT', () => {
+      Object.values(this.agents).forEach(a => a.onDisconnect?.())
+      this.agents = {}
+      if (recordingState.isActive) recordingState.stopRecording()
+    })
+
     socket.on('request_recording', (id, info) => {
       if (app.getTabId() !== info.meta.tabId) return
       const agentData = info.data
@@ -190,23 +194,15 @@ export default class Assist {
         this.emit('recording_busy')
       }
     })
-
     socket.on('stop_recording', (id, info) => {
       if (app.getTabId() !== info.meta.tabId) return
       if (recordingState.isActive) {
         recordingState.stopAgentRecording(id)
       }
     })
-
-    // Restart periodic initialization when socket connects
-    this.startPeriodicInitialization()
   }
 
   private clean() {
-    // Stop periodic initialization
-    this.stopPeriodicInitialization()
-    
-    // sometimes means new agent connected so we keep id for control
     if (this.socket) {
       this.socket.disconnect()
       this.app.debug.log('Socket disconnected')
