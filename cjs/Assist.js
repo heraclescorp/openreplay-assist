@@ -88,7 +88,7 @@ class Assist {
             }
             app.debug.log('Socket:', ...args);
         });
-        socket.on('NEW_AGENT', (id, info) => {
+        socket.on('NEW_AGENT', (id) => {
             var _a, _b;
             this.agents[id] = {
                 onDisconnect: (_b = (_a = this.options).onAgentConnect) === null || _b === void 0 ? void 0 : _b.call(_a),

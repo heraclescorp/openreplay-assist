@@ -126,7 +126,7 @@ export default class Assist {
       app.debug.log('Socket:', ...args)
     })
 
-    socket.on('NEW_AGENT', (id: string, info) => {
+    socket.on('NEW_AGENT', (id: string) => {
       this.agents[id] = {
         onDisconnect: this.options.onAgentConnect?.(),
       }
