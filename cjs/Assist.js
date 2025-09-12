@@ -1,13 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const socket_io_client_1 = require("socket.io-client");
+const peerjs_1 = require("peerjs");
 const ScreenRecordingState_js_1 = require("./ScreenRecordingState.js");
+// TODO: fully specified strict check with no-any (everywhere)
+// @ts-ignore
+const safeCastedPeer = peerjs_1.default.default || peerjs_1.default;
 class Assist {
     constructor(app, options, noSecureMode = false) {
         this.app = app;
         this.noSecureMode = noSecureMode;
         this.version = '6.0.0';
         this.socket = null;
+        this.peer = null;
         this.assistDemandedRestart = false;
         this.agents = {};
         this.options = Object.assign({
@@ -162,8 +167,25 @@ class Assist {
                 recordingState.stopAgentRecording(id);
             }
         });
+        // PeerJS call (todo: use native WebRTC)
+        const peerOptions = {
+            host: this.getHost(),
+            path: this.getBasePrefixUrl() + '/assist',
+            port: location.protocol === 'http:' && this.noSecureMode ? 80 : 443,
+            //debug: appOptions.__debug_log ? 2 : 0, // 0 Print nothing //1 Prints only errors. / 2 Prints errors and warnings. / 3 Prints all logs.
+        };
+        const peer = new safeCastedPeer(peerID, peerOptions);
+        this.peer = peer;
+        // @ts-ignore (peerjs typing)
+        peer.on('error', e => app.debug.warn('Peer error: ', e.type, e));
+        peer.on('disconnected', () => peer.reconnect());
     }
     clean() {
+        // sometimes means new agent connected so we keep id for control
+        if (this.peer) {
+            this.peer.destroy();
+            this.app.debug.log('Peer destroyed');
+        }
         if (this.socket) {
             this.socket.disconnect();
             this.app.debug.log('Socket disconnected');

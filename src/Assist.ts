@@ -6,6 +6,10 @@ import { App, } from '@openreplay/tracker'
 
 import ScreenRecordingState from './ScreenRecordingState.js'
 
+// TODO: fully specified strict check with no-any (everywhere)
+// @ts-ignore
+const safeCastedPeer = Peer.default || Peer
+
 type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void)
 
 export interface Options {
@@ -29,6 +33,7 @@ export default class Assist {
   readonly version = 'PACKAGE_VERSION'
 
   private socket: Socket | null = null
+  private peer: Peer | null = null
   private assistDemandedRestart = false
 
   private agents: Record<string, Agent> = {}
@@ -200,9 +205,29 @@ export default class Assist {
         recordingState.stopAgentRecording(id)
       }
     })
+
+    // PeerJS call (todo: use native WebRTC)
+    const peerOptions = {
+      host: this.getHost(),
+      path: this.getBasePrefixUrl()+'/assist',
+      port: location.protocol === 'http:' && this.noSecureMode ? 80 : 443,
+      //debug: appOptions.__debug_log ? 2 : 0, // 0 Print nothing //1 Prints only errors. / 2 Prints errors and warnings. / 3 Prints all logs.
+    }
+
+    const peer = new safeCastedPeer(peerID, peerOptions) as Peer
+    this.peer = peer
+
+    // @ts-ignore (peerjs typing)
+    peer.on('error', e => app.debug.warn('Peer error: ', e.type, e))
+    peer.on('disconnected', () => peer.reconnect())
   }
 
   private clean() {
+    // sometimes means new agent connected so we keep id for control
+    if (this.peer) {
+      this.peer.destroy()
+      this.app.debug.log('Peer destroyed')
+    }
     if (this.socket) {
       this.socket.disconnect()
       this.app.debug.log('Socket disconnected')
