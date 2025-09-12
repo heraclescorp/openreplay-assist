@@ -100,18 +100,17 @@ class Assist {
         };
         const recordingState = new ScreenRecordingState_js_1.default(this.options.recordingConfirm);
         socket.on('NEW_AGENT', (id, info) => {
-            var _a, _b;
-            this.agents[id] = {
-                onDisconnect: (_b = (_a = this.options).onAgentConnect) === null || _b === void 0 ? void 0 : _b.call(_a, info),
-                agentInfo: info, // TODO ?
-            };
-            this.assistDemandedRestart = true;
-            this.app.stop();
-            setTimeout(() => {
-                this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .catch(e => app.debug.error(e));
-                // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-            }, 500);
+            // this.agents[id] = {
+            //   onDisconnect: this.options.onAgentConnect?.(info),
+            //   agentInfo: info, // TODO ?
+            // }
+            // this.assistDemandedRestart = true
+            // this.app.stop()
+            // setTimeout(() => {
+            //   this.app.start().then(() => { this.assistDemandedRestart = false })
+            //     .catch(e => app.debug.error(e))
+            //   // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+            // }, 500)
         });
         socket.on('NO_AGENT', () => {
             Object.values(this.agents).forEach(a => { var _a; return (_a = a.onDisconnect) === null || _a === void 0 ? void 0 : _a.call(a); });

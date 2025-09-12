@@ -143,17 +143,17 @@ export default class Assist {
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
     socket.on('NEW_AGENT', (id: string, info) => {
-      this.agents[id] = {
-        onDisconnect: this.options.onAgentConnect?.(info),
-        agentInfo: info, // TODO ?
-      }
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { this.assistDemandedRestart = false })
-          .catch(e => app.debug.error(e))
-        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-      }, 500)
+      // this.agents[id] = {
+      //   onDisconnect: this.options.onAgentConnect?.(info),
+      //   agentInfo: info, // TODO ?
+      // }
+      // this.assistDemandedRestart = true
+      // this.app.stop()
+      // setTimeout(() => {
+      //   this.app.start().then(() => { this.assistDemandedRestart = false })
+      //     .catch(e => app.debug.error(e))
+      //   // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+      // }, 500)
     })
 
     socket.on('NO_AGENT', () => {
