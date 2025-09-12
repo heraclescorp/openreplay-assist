@@ -3,12 +3,12 @@ import type { Socket, } from 'socket.io-client'
 import { connect, } from 'socket.io-client'
 import { App, } from '@openreplay/tracker'
 
-type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void)
+type StartEndCallback = () => ((() => any) | void)
 
 export interface Options {
   onAgentConnect: StartEndCallback;
-  onRecordingRequest?: (agentInfo: Record<string, any>) => any;
-  onRecordingDeny?: (agentInfo: Record<string, any>) => any;
+  onRecordingRequest?: () => any;
+  onRecordingDeny?: () => any;
   recordingConfirm: any;
   serverURL: string
 }
@@ -18,7 +18,6 @@ type OptionalCallback = (()=>Record<string, unknown>) | void
 type Agent = {
   onDisconnect?: OptionalCallback,
   onControlReleased?: OptionalCallback,
-  agentInfo: Record<string, string> | undefined
   //
 }
 
@@ -129,8 +128,7 @@ export default class Assist {
 
     socket.on('NEW_AGENT', (id: string, info) => {
       this.agents[id] = {
-        onDisconnect: this.options.onAgentConnect?.(info),
-        agentInfo: info, // TODO ?
+        onDisconnect: this.options.onAgentConnect?.(),
       }
       this.assistDemandedRestart = true
       this.app.stop()

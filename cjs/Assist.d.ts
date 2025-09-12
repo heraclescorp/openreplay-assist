@@ -1,9 +1,9 @@
 import { App } from '@openreplay/tracker/cjs';
-type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void);
+type StartEndCallback = () => ((() => any) | void);
 export interface Options {
     onAgentConnect: StartEndCallback;
-    onRecordingRequest?: (agentInfo: Record<string, any>) => any;
-    onRecordingDeny?: (agentInfo: Record<string, any>) => any;
+    onRecordingRequest?: () => any;
+    onRecordingDeny?: () => any;
     recordingConfirm: any;
     serverURL: string;
 }
