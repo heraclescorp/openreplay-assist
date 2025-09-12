@@ -105,23 +105,6 @@ class Assist {
                 // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
             }, 500);
         });
-        socket.on('AGENTS_CONNECTED', (ids) => {
-            ids.forEach(id => {
-                var _a, _b, _c;
-                const agentInfo = (_a = this.agents[id]) === null || _a === void 0 ? void 0 : _a.agentInfo;
-                this.agents[id] = {
-                    agentInfo,
-                    onDisconnect: (_c = (_b = this.options).onAgentConnect) === null || _c === void 0 ? void 0 : _c.call(_b, agentInfo),
-                };
-            });
-            this.assistDemandedRestart = true;
-            this.app.stop();
-            setTimeout(() => {
-                this.app.start().then(() => { this.assistDemandedRestart = false; })
-                    .catch(e => app.debug.error(e));
-                // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-            }, 500);
-        });
     }
     clean() {
         if (this.socket) {

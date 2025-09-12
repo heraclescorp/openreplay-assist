@@ -145,23 +145,6 @@ export default class Assist {
         // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
       }, 500)
     })
-    socket.on('AGENTS_CONNECTED', (ids: string[]) => {
-      ids.forEach(id =>{
-        const agentInfo = this.agents[id]?.agentInfo
-        this.agents[id] = {
-          agentInfo,
-          onDisconnect: this.options.onAgentConnect?.(agentInfo),
-        }
-      })
-      this.assistDemandedRestart = true
-      this.app.stop()
-      setTimeout(() => {
-        this.app.start().then(() => { this.assistDemandedRestart = false })
-          .catch(e => app.debug.error(e))
-        // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
-      }, 500)
-
-    })
   }
 
   private clean() {
