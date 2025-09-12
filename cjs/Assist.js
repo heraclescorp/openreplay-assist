@@ -2,9 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const socket_io_client_1 = require("socket.io-client");
 class Assist {
-    constructor(app, options, noSecureMode = false) {
+    constructor(app, options) {
         this.app = app;
-        this.noSecureMode = noSecureMode;
         this.version = '6.0.0';
         this.socket = null;
         this.assistDemandedRestart = false;

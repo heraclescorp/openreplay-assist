@@ -9,13 +9,12 @@ export interface Options {
 }
 export default class Assist {
     private readonly app;
-    private readonly noSecureMode;
     readonly version = "6.0.0";
     private socket;
     private assistDemandedRestart;
     private agents;
     private readonly options;
-    constructor(app: App, options?: Partial<Options>, noSecureMode?: boolean);
+    constructor(app: App, options?: Partial<Options>);
     private emit;
     private get agentsConnected();
     private getHost;

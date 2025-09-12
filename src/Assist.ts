@@ -3,8 +3,6 @@ import type { Socket, } from 'socket.io-client'
 import { connect, } from 'socket.io-client'
 import { App, } from '@openreplay/tracker'
 
-import ScreenRecordingState from './ScreenRecordingState.js'
-
 type StartEndCallback = (agentInfo?: Record<string, any>) => ((() => any) | void)
 
 export interface Options {
@@ -35,7 +33,6 @@ export default class Assist {
   constructor(
     private readonly app: App,
     options?: Partial<Options>,
-    private readonly noSecureMode: boolean = false,
   ) {
     this.options = Object.assign({
         serverURL: null,

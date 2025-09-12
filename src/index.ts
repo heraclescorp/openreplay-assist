@@ -6,7 +6,7 @@ import Assist from './Assist.js'
 
 
 export default function(opts?: Partial<Options>) {
-  return function(app: App | null, appOptions: { __DISABLE_SECURE_MODE?: boolean } = {}) {
+  return function(app: App | null) {
     // @ts-ignore
     if (app === null || !navigator?.mediaDevices?.getUserMedia) { // 93.04% browsers
       return
@@ -16,7 +16,7 @@ export default function(opts?: Partial<Options>) {
       return
     }
     app.notify.log('OpenReplay Assist initializing.')
-    const assist = new Assist(app, opts, appOptions.__DISABLE_SECURE_MODE)
+    const assist = new Assist(app, opts)
     app.debug.log(assist)
     return assist
 
