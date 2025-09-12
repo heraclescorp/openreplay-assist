@@ -32,7 +32,7 @@ export default class Assist {
   private socket: Socket | null = null
   private assistDemandedRestart = false
 
-  private agents: Record<string, Agent> = {}
+  // private agents: Record<string, Agent> = {}
   private readonly options: Options
   constructor(
     private readonly app: App,
@@ -72,11 +72,11 @@ export default class Assist {
       observer && observer.disconnect()
     })
     app.attachCommitCallback((messages) => {
-      if (this.agentsConnected) {
-        // @ts-ignore No need in statistics messages. TODO proper filter
-        if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
-        this.emit('messages', messages)
-      }
+      // if (this.agentsConnected) {
+      //   // @ts-ignore No need in statistics messages. TODO proper filter
+      //   if (messages.length === 2 && messages[0]._id === 0 &&  messages[1]._id === 49) { return }
+      //   this.emit('messages', messages)
+      // }
     })
     app.session.attachUpdateCallback(sessInfo => this.emit('UPDATE_SESSION', sessInfo))
   }
@@ -85,9 +85,9 @@ export default class Assist {
     this.socket && this.socket.emit(ev, { meta: { tabId: this.app.getTabId(), }, data: args, })
   }
 
-  private get agentsConnected(): boolean {
-    return Object.keys(this.agents).length > 0
-  }
+  // private get agentsConnected(): boolean {
+  //   return Object.keys(this.agents).length > 0
+  // }
 
   private getHost():string{
     if (this.options.serverURL){
@@ -142,7 +142,7 @@ export default class Assist {
     }
     const recordingState = new ScreenRecordingState(this.options.recordingConfirm)
 
-    socket.on('NEW_AGENT', (id: string, info) => {
+    // socket.on('NEW_AGENT', (id: string, info) => {
       // this.agents[id] = {
       //   onDisconnect: this.options.onAgentConnect?.(info),
       //   agentInfo: info, // TODO ?
@@ -154,12 +154,12 @@ export default class Assist {
       //     .catch(e => app.debug.error(e))
       //   // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
       // }, 500)
-    })
+    // })
 
     socket.on('NO_AGENT', () => {
-      Object.values(this.agents).forEach(a => a.onDisconnect?.())
-      this.agents = {}
-      if (recordingState.isActive) recordingState.stopRecording()
+      // Object.values(this.agents).forEach(a => a.onDisconnect?.())
+      // this.agents = {}
+      // if (recordingState.isActive) recordingState.stopRecording()
     })
 
     socket.on('request_recording', (id, info) => {
