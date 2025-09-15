@@ -17,7 +17,7 @@ export default class Assist {
     constructor(app: App, options?: Partial<Options>);
     private emit;
     private get agentsConnected();
-    get isRestarting(): boolean;
+    get forcingTrackerRestart(): boolean;
     private getHost;
     private getBasePrefixUrl;
     private onStart;

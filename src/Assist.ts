@@ -83,7 +83,7 @@ export default class Assist {
     return Object.keys(this.agents).length > 0
   }
 
-  get isRestarting(): boolean {
+  get forcingTrackerRestart(): boolean {
     return this.assistDemandedRestart
   }
 

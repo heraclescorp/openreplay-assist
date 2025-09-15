@@ -52,7 +52,7 @@ class Assist {
     get agentsConnected() {
         return Object.keys(this.agents).length > 0;
     }
-    get isRestarting() {
+    get forcingTrackerRestart() {
         return this.assistDemandedRestart;
     }
     getHost() {
