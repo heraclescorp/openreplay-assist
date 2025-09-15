@@ -83,6 +83,10 @@ export default class Assist {
     return Object.keys(this.agents).length > 0
   }
 
+  get forcingTrackerRestart(): boolean {
+    return this.assistDemandedRestart
+  }
+
   private getHost():string{
     if (this.options.serverURL){
       return new URL(this.options.serverURL).host

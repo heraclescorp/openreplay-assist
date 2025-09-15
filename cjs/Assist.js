@@ -52,6 +52,9 @@ class Assist {
     get agentsConnected() {
         return Object.keys(this.agents).length > 0;
     }
+    get forcingTrackerRestart() {
+        return this.assistDemandedRestart;
+    }
     getHost() {
         if (this.options.serverURL) {
             return new URL(this.options.serverURL).host;
